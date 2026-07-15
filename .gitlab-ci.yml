@@ -12,10 +12,10 @@ cache:
 
 test:
   stage: test
-  image: python:3.12
+  image: python:3.12          # pinned — 3.13/latest breaks pyarrow's prebuilt wheels
   script:
-    - pip install -e .
-    - pytest tests/
+    - pip install -e ".[dev]"
+    - python -m pytest tests/ -v
 
 generate_report:
   stage: report

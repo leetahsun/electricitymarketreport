@@ -1,6 +1,6 @@
 import statistics
 from datetime import datetime, timezone
-
+from collections import defaultdict
 from src.extract import RENEWABLE_SOURCES
 from src.models import KPIRecord
 
@@ -25,20 +25,25 @@ def compute_renewable_share(generation: dict[str, list[tuple[int, float]]]) -> l
     return records
 
 
-def compute_price_volatility(price_series: list[tuple[int, float]]) -> KPIRecord:
-    values = [v for _, v in price_series if v is not None]
-    latest_ts = price_series[-1][0]
-    return [
-        KPIRecord(
-            timestamp=datetime.fromtimestamp(latest_ts / 1000, tz=timezone.utc),
-            metric_name="price_spread_eur_mwh", #computing what the worst case swing is for the day
-            value=max(values) - min(values), 
-            segment="DE_LU",
-        ),
-        KPIRecord(
-            timestamp=datetime.fromtimestamp(latest_ts / 1000, tz=timezone.utc),
-            metric_name="price_stdev_eur_mwh", # checking how turbulent the whole day was
-            value=statistics.pstdev(values),
-            segment="DE_LU",
-        ),
-    ]
+def compute_price_volatility(price_series: list[tuple[int, float]]) -> list[KPIRecord]:
+  
+    by_day = defaultdict(list)
+    for ts, value in price_series:
+        if value is None:
+            continue
+        day = datetime.fromtimestamp(ts / 1000, tz=timezone.utc).date()
+        by_day[day].append((ts, value))
+
+    records = []
+    for day, points in sorted(by_day.items()):
+        values = [v for _, v in points]
+        day_ts = datetime.combine(day, datetime.min.time(), tzinfo=timezone.utc)
+        records.append(KPIRecord(
+            timestamp=day_ts, metric_name="price_spread_eur_mwh",
+            value=max(values) - min(values), segment="DE_LU",
+        ))
+        records.append(KPIRecord(
+            timestamp=day_ts, metric_name="price_stdev_eur_mwh",
+            value=statistics.pstdev(values), segment="DE_LU",
+        ))
+    return records
