@@ -1,5 +1,7 @@
 import statistics
 from datetime import datetime, timezone
+
+from src.extract import RENEWABLE_SOURCES
 from src.models import KPIRecord
 
 def compute_renewable_share(generation: dict[str, list[tuple[int, float]]]) -> list[KPIRecord]:

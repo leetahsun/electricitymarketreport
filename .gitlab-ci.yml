@@ -1,0 +1,48 @@
+stages:
+  - test
+  - report
+  - pages
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+
+test:
+  stage: test
+  image: python:3.12
+  script:
+    - pip install -e .
+    - pytest tests/
+
+generate_report:
+  stage: report
+  image: python:3.12
+  script:
+    - pip install -e .
+    - python -m src.run_pipeline --out-dir "reports/$(date -u +%F)"
+  artifacts:
+    paths:
+      - reports/
+    expire_in: 90 days
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+pages:
+  stage: pages
+  image: python:3.12
+  needs: ["generate_report"]
+  script:
+    - mkdir -p public
+    - LATEST=$(ls -1 reports | sort | tail -n 1)
+    - cp "reports/$LATEST/report.html" public/index.html
+    - cp "reports/$LATEST/kpis.json" public/
+  artifacts:
+    paths:
+      - public/
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'

@@ -1,0 +1,7 @@
+README.md
+pyproject.toml
+src/electricitymarketreport.egg-info/PKG-INFO
+src/electricitymarketreport.egg-info/SOURCES.txt
+src/electricitymarketreport.egg-info/dependency_links.txt
+src/electricitymarketreport.egg-info/requires.txt
+src/electricitymarketreport.egg-info/top_level.txt
