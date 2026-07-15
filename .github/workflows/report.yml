@@ -1,0 +1,55 @@
+name: KPI Reporting Pipeline
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # daily at 06:00 UTC
+  workflow_dispatch:        # lets you trigger it manually from the Actions tab
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'    # must match
+      - run: python -m pytest tests/ -v
+
+  generate_report:
+    needs: test
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e .
+      - run: python -m src.run_pipeline --out-dir "reports/$(date -u +%F)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kpi-report
+          path: reports/
+
+  pages:
+    needs: generate_report
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: kpi-report
+          path: reports/
+      - run: |
+          mkdir -p public
+          LATEST=$(ls -1 reports | sort | tail -n 1)
+          cp "reports/$LATEST/report.html" public/index.html
+          cp "reports/$LATEST/kpis.json" public/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public/
+      - uses: actions/deploy-pages@v4
+        id: deployment
